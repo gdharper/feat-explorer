@@ -13,7 +13,6 @@ filtKeys = set(["name", "types", "description", "benefits", "source", "prerequis
 
 featList = []
 featDict = {}
-sources = []
 filt = {}
 filtList = []
 
@@ -56,7 +55,6 @@ def print_filter_state():
 
 def clearConsole():
     _ = subprocess.run("cls" if platform.system() == "Windows" else "clear", shell = True)
-    print(titleString)
 
 #########################################################################################
 # State Actions
@@ -128,7 +126,7 @@ def modify_filter():
         else: print("\t" + k + " : Edit filtering based on: " + v)
 
     key = input("Enter selection: ")
-    while key not in options.keys(): key = input("INvalid selection.\nEnter selection: ")
+    while key not in options.keys(): key = input("Invalid selection.\nEnter selection: ")
 
     if key == "0": map(lambda k: filt[k].clear(), filt.keys())
     elif key == "q": return "edit_filter"
@@ -162,57 +160,67 @@ def print_feat():
         if "yes".find(retry) == 0: return "print_feat"
         elif "no".find(retry) == 0: return "base_menu"
 
+def exit_program():
+    clearConsole()
+    quit()
+
+def simple_state(options):
+    def print_option(key): 
+        print("\t" + key + " : " + options[key][1])
+
+    print("Possible actions:")
+    for k in options.keys(): print_option(k)
+    print()
+    
+    k = input("Please enter a selection: ")
+    while k not in options.keys(): k = input("Invalid selection.\nPlease enter a selection: ")
+    return options[k][0]
+
+def edit_filter():
+    options = {"m" : ("modify_filter", "Change elements of current filter"),
+               "a" : ("apply_filter", "Apply current filter to feat database"),
+               "b" : ("base_menu", "Return to initial program menu")}
+    return simple_state(options)
+
+def base_menu():
+    options = { "f" : ("edit_filter", "Update or apply current filter"),
+                "v" : ("view_feats", "View filtered feat selection or output to file"),
+                "t" : ("view_tree", "View filtered feat selection as dependency tree"),
+                "p" : ("print_feat", "View a specific feat in the console"),
+                "x" : ("exit_program", "Exit program")}
+    return simple_state(options)
 
 ###############################################################################################################
 # State Table
 ###############################################################################################################
-states = {"base_menu" : {"transitions" : {"f" : ("edit_filter", "Update or apply current filter"),
-                                          "v" : ("view_feats", "View filtered feat selection or output to file"),
-                                          "t" : ("view_tree", "View filtered feat selection as dependency tree"),
-                                          "p" : ("print_feat", "View a specific feat in the console"),
-                                          "x" : ("exit", "Exit program")}},
-          "edit_filter" : {"transitions" : {"m" : ("modify_filter", "Change elements of current filter"),
-                                            "a" : ("apply_filter", "Apply current filter to feat database"),
-                                            "b" : ("base_menu", "Return to initial program menu")}},
-          "view_feats" : {"action" : view_feats},
-          "view_tree" : {"action" : view_tree},
-          "modify_filter" : {"action" : modify_filter},
-          "apply_filter" : {"action" : apply_filter},
-          "print_feat" : {"action" : print_feat},
-          "exit" : {"action" : quit}}
+states = {"base_menu" : base_menu,
+          "edit_filter" : edit_filter,
+          "view_feats" : view_feats,
+          "view_tree" : view_tree,
+          "modify_filter" : modify_filter,
+          "apply_filter" : apply_filter,
+          "print_feat" : print_feat,
+          "exit_program" : exit_program}
 
 ###############################################################################################################
 # Main Program Functionality
 ###############################################################################################################
-def outputProgramState(transitions):
-    print_filter_state()
-    print("Number of feats in filtered selection: " + str(len(filtList)))
-
-    print("Possible actions")
-    for key, value in transitions.items(): print("\t" + key + " : " + value[1])
-
 def executeState(state):
     clearConsole()
-
-    if "action" in states[state]:
-        return states[state]["action"]()
-    
-    transitions = states[state]["transitions"]
-    outputProgramState(transitions)
-
-    action = input("Please enter a selection: ")
-    return transitions.get(action, (state, ""))[0]
+    print(titleString)
+    print_filter_state()
+    print("Number of feats in filtered selection: " + str(len(filtList)) + "\n")
+    return states[state]()
 
 if __name__ == "__main__":
     with open(inFile, "r") as csvFile:
         reader = csv.DictReader(csvFile)
-        for row in reader:
+        for row in reader: 
             featList.append(row)
             featDict[row["name"].lower()] = row
-            filtList.append(row)
-            sources.append(row["source"])
 
     for k in filtKeys: filt[k] = {}
+    apply_filter()
 
     current_state = "base_menu"
     while True: current_state = executeState(current_state)
