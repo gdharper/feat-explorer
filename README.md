@@ -3,8 +3,8 @@ Some simple python scripts for interacting with the overwhelming database of cha
 
 ## FeatExplorer.py
 The core script, a console app that can sort through and display feats 
-read from the hardcoded "feats.csv" file, found i nthe same directory as the script.
+read from the hardcoded "Feats.csv" file, found i nthe same directory as the script.
 
 ## ParseFeatCsv.py
-Reads from the "featsBase.csv" file, which must be in the same directory as the script.
+Reads from the "FeatsBase.csv" file, which must be in the same directory as the script.
 Will output a re-formatted and condensed csv as feats.csv in the format expected by FeatExplorer.py
