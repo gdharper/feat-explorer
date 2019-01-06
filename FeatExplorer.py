@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import csv
 import platform
 import subprocess
@@ -97,12 +98,13 @@ def view_tree(state):
 
 def determine_prereq_type():
     print("select prerequisite type to filter:")
-    options = { "1": ("General prerequisites", "prerequisites"),
-                "2": ("Prerequisite feats", "prerequisite_feats"),
-                "3": ("Prerequisite skills", "prerequisite_skills"),
-                "4": ("Prerequisite races", "prerequisite_race")}
+    options = OrderedDict()
+    options["1"] = ("General prerequisites", "prerequisites")
+    options["2"] = ("Prerequisite feats", "prerequisite_feats")
+    options["3"] =("Prerequisite skills", "prerequisite_skills")
+    options["4"] = ("Prerequisite races", "prerequisite_race")
 
-    opts = [k + " : " + v[0] for k,v in options.items()]
+    opts = [k + " : " + v[0] for k, v in options.items()]
     print("\t " + "\n\t ".join(opts))
 
     response = input("Selection: ")
@@ -134,16 +136,17 @@ def tweak_filter_element(state, k):
 def modify_filter(state):
     state.printFilterState()
     print("Select filter criteria to modify")
-    options = {"0" : "Clear Filter",
-               "1" : "name",
-               "2" : "types",
-               "3" : "description",
-               "4" : "benefits",
-               "5" : "source",
-               "6" : "prerequisites",
-               "q" : "Return"}
+    options = OrderedDict()
+    options["0"] = "Clear Filter"
+    options["1"] = "name"
+    options["2"] = "types"
+    options["3"] ="description"
+    options["4"] = "benefits"
+    options["5"] = "source"
+    options["6"] = "prerequisites"
+    options["q"] = "Return"
 
-    for k,v in options.items():
+    for k, v in options.items():
         if k in ["0", "q"]: print("\t" + k + " : " + v)
         else: print("\t" + k + " : Edit filtering based on: " + v)
 
@@ -185,30 +188,33 @@ def exit_program(_):
     quit()
 
 def simple_state(options):
-    def print_option(key): 
-        print("\t" + key + " : " + options[key][1])
+    def print_option(k, v): 
+        print("\t"+k+" : "+v[1])
 
     print("Possible actions:")
-    for k in options.keys(): print_option(k)
+    for k, v in options.items(): print_option(k, v)
     print()
     
     k = input("Please enter a selection: ")
-    while k not in options.keys(): k = input("Invalid selection.\nPlease enter a selection: ")
+    while k not in options.keys():
+        k = input("Invalid selection.\nPlease enter a selection: ")
     return options[k][0]
 
 def edit_filter(state):
     state.printFilterState()
-    options = {"m" : ("modify_filter", "Change elements of current filter"),
-               "a" : ("apply_filter", "Apply current filter to feat database"),
-               "v" : ("view_feats", "View filtered selection or output to file"),
-               "b" : ("base_menu", "Return to initial program menu")}
+    options = OrderedDict()
+    options["m"] = ("modify_filter", "Change elements of current filter")
+    options["a"] = ("apply_filter", "Apply current filter to feat database")
+    options["v"] = ("view_feats", "View filtered selection or output to file")
+    options["b"] =  ("base_menu", "Return to initial program menu")
     return simple_state(options)
 
 def base_menu(_):
-    options = { "f" : ("edit_filter", "Filter feat database and view filtered selection"),
-                "p" : ("print_feat", "View a specific feat in the console"),
-                "t" : ("view_tree", "View full feat tree"),
-                "x" : ("exit_program", "Exit program")}
+    options = OrderedDict()
+    options["f"] = ("edit_filter", "Filter feat database and view filtered selection")
+    options["p"] = ("print_feat", "View a specific feat in the console")
+    options["t"] = ("view_tree", "View full feat tree")
+    options["x"] = ("exit_program", "Exit program")
     return simple_state(options)
 
 ########################################################################################
