@@ -68,15 +68,23 @@ class ProgramState:
 def featToString_Brief(feat):
     return feat["name"] + " - " + feat["description"]
 
-def featToString(feat):
-    lines = [featToString_Brief(feat),
-             "Type(s): " + feat["types"],
-             "Prerequisistes: " + feat["prerequisites"], 
-             feat["benefit"]]
-    return "\n".join(lines)
+def maybeAppendKey(key, feat, lines):
+    if feat[key]:
+        lines.append(key.replace("_", " ").capitalize() + ": " + feat[key])
+        return True
+    return False
 
-def featToString_Full(feat):
-    return featToString(feat)
+def featToString(feat):
+    lines = []
+    lines.append(featToString_Brief(feat))
+    maybeAppendKey("types",feat,lines)
+    maybeAppendKey("prerequisites",feat,lines)
+
+    for key in ["special", "benefit", "normal", "goal", "completion_benefit"]:
+        if maybeAppendKey(key, feat, lines): lines.append("")
+
+    return "\n".join(lines) 
+
 
 def clearConsole():
     _=subprocess.run("cls" if platform.system() == "Windows" else "clear", shell = True)
@@ -85,16 +93,30 @@ def clearConsole():
 # State Actions
 ########################################################################################
 def view_feats(state):
-    print("\n".join(map(featToString_Brief, state.filteredSelection)))
+    feats_sorted = sorted(state.filteredSelection, key=lambda feat: feat["name"])
+    
+    resp = input("View detailed feat descriptions [yes/no]? ").lower()
+    if "yes".find(resp) == 0: print ("\n\n".join(map(featToString, feats_sorted)))
+    else: print("\n\n".join(map(featToString_Brief, feats_sorted))) 
+    
     print() 
-    resp = input("View a feat in detail [yes/no]? ")
-    if "yes".find(resp) == 0: _=print_feat(state)
-    _=input("\nPress [Enter] to return to filtering menu: ")
+    resp = input("View specific feat(s) in detail [yes/no]? ")
+    if "yes".find(resp) == 0: _ = print_feat(state)
     return "edit_filter"
 
-def view_tree(state):
-    print("view_tree")
-    return "base_menu"
+def output_feats(state):
+    outfile = input("Path to file for filtered selection output: ")
+    with open(outfile, "w") as f:
+        feats_sorted = sorted(state.filteredSelection, key=lambda feat: feat["name"])
+
+        resp = input("Output detailed feat descriptions [yes/no]? ").lower()
+        if "yes".find(resp) == 0: f.write("\n\n".join(map(featToString, feats_sorted)))
+        else: f.write("\n\n".join(map(featToString_Brief, feats_sorted)))
+        f.write("\n")
+
+    print(outfile + " written.")
+    return "edit_filter"
+ 
 
 def determine_prereq_type():
     print("select prerequisite type to filter:")
@@ -172,11 +194,12 @@ def print_feat(state):
     for feat in state.featList:
         featDict[feat["name"].lower()] = feat
     
-    while True: 
+    while True:
         featName = input("Enter the name of the feat you wish to view: ").lower()
         print()
         if featName not in featDict: print("Invalid feat name")
-        else: print(featToString_Full(featDict[featName]))
+        else: print(featToString(featDict[featName]))
+        
         print()
         while True:
             retry = input("View another feat? [yes/no]? ").lower()
@@ -205,15 +228,15 @@ def edit_filter(state):
     options = OrderedDict()
     options["m"] = ("modify_filter", "Change elements of current filter")
     options["a"] = ("apply_filter", "Apply current filter to feat database")
-    options["v"] = ("view_feats", "View filtered selection or output to file")
+    options["v"] = ("view_feats", "View filtered selection")
+    options["o"] = ("out_feats", "Output filtered selection to file")
     options["b"] =  ("base_menu", "Return to initial program menu")
     return simple_state(options)
 
 def base_menu(_):
-    options = OrderedDict()
+    options = OrderedDict() 
     options["f"] = ("edit_filter", "Filter feat database and view filtered selection")
     options["p"] = ("print_feat", "View a specific feat in the console")
-    options["t"] = ("view_tree", "View full feat tree")
     options["x"] = ("exit_program", "Exit program")
     return simple_state(options)
 
@@ -223,7 +246,7 @@ def base_menu(_):
 states = {"base_menu" : base_menu,
           "edit_filter" : edit_filter,
           "view_feats" : view_feats,
-          "view_tree" : view_tree,
+          "out_feats" : output_feats,
           "modify_filter" : modify_filter,
           "apply_filter" : apply_filter,
           "print_feat" : print_feat,
