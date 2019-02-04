@@ -10,7 +10,7 @@ import sys
 titleString = "Pathfinder Feat Explorer - Updated Jan 3, 2019\n"
 
 class ProgramState:
-    filtKeys = set(["name","types","description","benefits","source","prerequisites",
+    filtKeys = set(["name","types","description","benefit","source","prerequisites",
                     "prerequisite_feats","prerequisite_skills","prerequisite_race"])
 
     def __init__(self, featList, initialState):
@@ -163,7 +163,7 @@ def modify_filter(state):
     options["1"] = "name"
     options["2"] = "types"
     options["3"] ="description"
-    options["4"] = "benefits"
+    options["4"] = "benefit"
     options["5"] = "source"
     options["6"] = "prerequisites"
     options["q"] = "Return"
