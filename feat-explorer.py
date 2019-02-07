@@ -1,168 +1,154 @@
 from collections import OrderedDict
+import copy
 import csv
+from Feat import Feat
+from FeatFilter import Filter
 import platform
 import subprocess
 import sys
 
-########################################################################################
-# Global Constants and Context
-########################################################################################
 titleString = "Pathfinder Feat Explorer - Updated Jan 3, 2019\n"
-
-class ProgramState:
-    filtKeys = set(["name","types","description","benefit","source","prerequisites",
-                    "prerequisite_feats","prerequisite_skills","prerequisite_race"])
-
-    def __init__(self, featList, initialState):
-        self.current_state = initialState
-        self.filt = {}
-        for k in ProgramState.filtKeys: self.filt[k] = {}
-        self.featList = featList
-        self.filteredSelection = []
-        self.applyFilter()
- 
-    def clearFilterElement(self, key):
-        self.filt[key].clear()
-
-    def clearFilter(self):
-        for key in self.filt.keys():
-            self.clearFilterElement(key)
-
-    def printFilterState(self):
-        print("Current filter state:")
-        if not any(self.filt.values()):
-            print("No filter\n")
-        else:
-            filtStr = ""
-            for k in filter(lambda k: self.filt[k] != {}, self.filt.keys()):
-                inc = [key for key in self.filt[k].keys() if self.filt[k][key]]
-                exc = [key for key in self.filt[k].keys() if not self.filt[k][key]]
-                filtStr += "\t" + k + ": \n"
-                if inc: filtStr += "\t\tIncludes: " + ", ".join(inc) + "\n"
-                if exc: filtStr += "\t\tExcludes: " + ", ".join(exc) + "\n"
-            print(filtStr)
-        print("Feats in current selection: "+str(len(self.filteredSelection)))
-
-    def containsFilter(self, k):
-        return self.filt[k] != {}
-
-    def requireValueIn(self, value, element):
-        self.filt[element][value] = True
-
-    def filterValueFrom(self, value, element):
-        self.filt[element][value] = False
-
-    def applyFilter(self):
-        def do_filter(filt, feat):
-            for k in filt.keys():
-                for key in filt[k].keys():
-                    if (key in feat[k].lower()) != filt[k][key]: return False
-            return True
-
-        self.filteredSelection = [f for f in self.featList if do_filter(self.filt, f)]
-
-
-########################################################################################
-# UI "Prettiness"
-########################################################################################
-def featToString_Brief(feat):
-    return feat["name"] + " - " + feat["description"]
-
-def maybeAppendKey(key, feat, lines):
-    if feat[key]:
-        lines.append(key.replace("_", " ").capitalize() + ": " + feat[key])
-        return True
-    return False
-
-def featToString(feat):
-    lines = []
-    lines.append(featToString_Brief(feat))
-    maybeAppendKey("types",feat,lines)
-    maybeAppendKey("prerequisites",feat,lines)
-
-    for key in ["special", "benefit", "normal", "goal", "completion_benefit"]:
-        if maybeAppendKey(key, feat, lines): lines.append("")
-
-    return "\n".join(lines) 
-
-
 def clearConsole():
     _=subprocess.run("cls" if platform.system() == "Windows" else "clear", shell = True)
+
+
+class ProgramState:
+    filtKeys = set(["name"," types","description","benefit","source","prerequisites",
+                    "prerequisite_feats","prerequisite_skills","prerequisite_race"])
+
+    def __init__(self, featList, stateTable, initialState):
+        self.current_state = initialState
+        self.states = stateTable
+        self.filter = Filter()
+        self.featlist = featList
+        self.featdict = { f.name : f for f in self.featlist }
+        self.selection = [] 
+
+        # Enumerate all parent child relationships
+        for f in self.featlist:
+            for dep in f.deps:
+                self.featdict[dep].children.append(f.name)
+                f.parents.append(dep)
+
+        # Remove nested parent-child links
+        for f in self.featlist:
+            toremove = set()
+            for p in f.parents:
+                for p_ in f.parents:
+                    if p_ in self.featdict[p].parents:
+                        toremove.add(p_)
+            for n in toremove:
+                f.parents.remove(n) 
+                self.featdict[n].children.remove(f.name)
+
+        self.applyFilter();  
+
+    def executeState(self):
+        clearConsole()
+        print(titleString)
+        self.current_state = self.states[self.current_state](self)
+
+    def applyFilter(self):
+        self.selection = [ f for f in self.featlist if self.filter.apply(f.raw) ]
+
+    def tweakFilter(self, k):
+        def prereq_type():
+            print("Select prerequisite type to filter:")
+            options = OrderedDict()
+            options["1"] = ("General prerequisites", "prerequisites")
+            options["2"] = ("Prerequisite feats", "prerequisite_feats")
+            options["3"] =("Prerequisite skills", "prerequisite_skills")
+            options["4"] = ("Prerequisite races", "prerequisite_race")
+            print("\t " + "\n\t ".join([k+" : "+v[0] for k,v in options.items()]))
+            response = input("Selection: ")
+            while response not in options.keys(): response = input("Selection: ")
+            return options[response][1]
+
+        if k == "Clear Filter":
+            self.filter.clear()
+            return
+
+        clearConsole()
+        print(self)
+        print("Modifying filter based on feat " + k)
+    
+        k = prereq_type(k) if k == "prerequisites" else k 
+    
+        if self.filter.containsKey(k):
+            response = input("Clear filtering based on feat "+k+" [yes/no] ? ").lower()
+            if "yes".find(response) == 0: state.filter.clearKey(k)
+
+        term  = input("Term to add to filter: ").lower()
+        while True:
+            resp = input("[Include/Exclude] "+term+" from feat "+k+": ").lower()
+            if "include".find(resp) == 0:
+                self.filter.addKeyInclude(k, term)
+                break
+            elif "exclude".find(resp) == 0:
+                self.filter.addKeyExclude(k, term)
+                break
+
+        print(self)    
+
+
+    def __str__(self):
+         return "Current filter state:\n"+str(self.filter)+"\n"+"Feats in current selection: "+str(len(self.selection))
+
 
 ########################################################################################
 # State Actions
 ########################################################################################
+
+def getViewString(state):
+    detailed = input("Output detailed feat information [yes/no] ? ").lower()
+    return  "\n\n".join([str(f) for f in state.selection] \
+                        if "yes".find(detailed) == 0 \
+                        else [f.briefstr() for f in state.selection]) + "\n"
+
 def view_feats(state):
-    feats_sorted = sorted(state.filteredSelection, key=lambda feat: feat["name"])
-    
-    resp = input("View detailed feat descriptions [yes/no]? ").lower()
-    if "yes".find(resp) == 0: print ("\n\n".join(map(featToString, feats_sorted)))
-    else: print("\n\n".join(map(featToString_Brief, feats_sorted))) 
-    
-    print() 
+    print(getViewstr(state))
     resp = input("View specific feat(s) in detail [yes/no]? ")
     if "yes".find(resp) == 0: _ = print_feat(state)
-    return "edit_filter"
+    return "do_filter"
 
 def output_feats(state):
     outfile = input("Path to file for filtered selection output: ")
     with open(outfile, "w") as f:
-        feats_sorted = sorted(state.filteredSelection, key=lambda feat: feat["name"])
-
-        resp = input("Output detailed feat descriptions [yes/no]? ").lower()
-        if "yes".find(resp) == 0: f.write("\n\n".join(map(featToString, feats_sorted)))
-        else: f.write("\n\n".join(map(featToString_Brief, feats_sorted)))
-        f.write("\n")
-
-    print(outfile + " written.")
-    return "edit_filter"
+        f.write(getViewstr(state))
+    return "do_filter"
  
+def output_tree(state):
+    print(state)
 
-def determine_prereq_type():
-    print("select prerequisite type to filter:")
-    options = OrderedDict()
-    options["1"] = ("General prerequisites", "prerequisites")
-    options["2"] = ("Prerequisite feats", "prerequisite_feats")
-    options["3"] =("Prerequisite skills", "prerequisite_skills")
-    options["4"] = ("Prerequisite races", "prerequisite_race")
-
-    opts = [k + " : " + v[0] for k, v in options.items()]
-    print("\t " + "\n\t ".join(opts))
-
-    response = input("Selection: ")
-    while response not in options.keys(): response = input("Selection: ")
-    return options[response][1]
-
-def tweak_filter_element(state, k):
-    clearConsole()
-    state.printFilterState()
-    print("Modifying filter based on feat " + k)
+    rootfeats = set()
+    for f in state.selection:
+        add = True
+        for p in f.parents:
+            if state.featdict[p] in state.selection: add = False
+        if add: rootfeats.add(f)
+   
+    outstr = "\n".join([f.chainstr(state.featdict) for f in rootfeats])
     
-    if k == "prerequisites": k = determine_prereq_type()
-    if state.containsFilter(k):
-        response = input("Clear existing filtering based on feat " + k + " [yes/no] ? ").lower()
-        if "yes".find(response) == 0: state.clearFilterElement(k)
+    outfile = input("Output file path? [Empty String to print to console] ")
+    if not outfile:
+        print(outstr)
+        _ = input("Press [Enter] to return to previous menu ")
+    else:
+        with open(outfile, "w") as ofile:
+            ofile.write(outstr)
+    
+    return "do_filter"
 
-    response = input("Term to add to filter: ").lower()
-    while True:
-        resp = input("[Include/Exclude] "+response+" from feat "+k+": ").lower()
-        if "include".find(resp) == 0:
-            state.requireValueIn(response, k)
-            break
-        elif "exclude".find(resp) == 0:
-            state.filterValueFrom(response, k)
-            break
 
-    state.printFilterState()    
 
 def modify_filter(state):
-    state.printFilterState()
+    print(state)
     print("Select filter criteria to modify")
     options = OrderedDict()
     options["0"] = "Clear Filter"
     options["1"] = "name"
     options["2"] = "types"
-    options["3"] ="description"
+    options["3"] = "description"
     options["4"] = "benefit"
     options["5"] = "source"
     options["6"] = "prerequisites"
@@ -175,68 +161,68 @@ def modify_filter(state):
     k = input("Enter selection: ")
     while k not in options.keys(): k = input("Invalid selection.\nEnter selection: ")
 
-    if k == "0": state.clearFilter() 
-    elif k == "q": return "edit_filter"
-    else: tweak_filter_element(state, options[k])   
+    if k == "q":
+        return "do_filter"
+    else: 
+        state.tweakFilter(options[k])   
 
     while True:
-        cont = input("Continue editing the filter? [yes/no]? ").lower()
+        cont = input("Continue editing the filter [yes/no] ? ").lower()
         if "yes".find(cont) == 0: return "modify_filter"
-        elif "no".find(cont) == 0: return "edit_filter"
+        elif "no".find(cont) == 0: return "do_filter"
 
 def apply_filter(state):
-    print("Filtering feats")
     state.applyFilter()
-    return "edit_filter"
+    return "do_filter"
 
 def print_feat(state):
-    featDict = {}
-    for feat in state.featList:
-        featDict[feat["name"].lower()] = feat
-    
+    featdict = { k.lower() : v for (k,v) in state.featdict.items() }
+
     while True:
-        featName = input("Enter the name of the feat you wish to view: ").lower()
+        name = input("Enter the name of the feat you wish to view: ").lower()
         print()
-        if featName not in featDict: print("Invalid feat name")
-        else: print(featToString(featDict[featName]))
-        
-        print()
-        while True:
-            retry = input("View another feat? [yes/no]? ").lower()
-            if "no".find(retry) == 0: return "base_menu"
-            elif "yes".find(retry) == 0: break
+        if name not in featdict.keys():
+            print("Invalid feat name")
+        else:
+            print(featdict[name])
+            print()
+            tree = input("View child feats of " + name + " [yes/no] ? ").lower()
+            if "yes".find(tree) == 0:
+                print(featdict[name].chainstr(state.featdict))
+                print()
+
+        retry = input("View another feat? [yes/no]? ").lower()
+        if "no".find(retry) == 0: return "base_menu"
 
 def exit_program(_):
     clearConsole()
-    quit()
+    quit() 
 
 def simple_state(options):
-    def print_option(k, v): 
-        print("\t"+k+" : "+v[1])
-
     print("Possible actions:")
-    for k, v in options.items(): print_option(k, v)
+    for k, v in options.items(): print("\t"+k+" : "+v[1])
     print()
     
     k = input("Please enter a selection: ")
     while k not in options.keys():
         k = input("Invalid selection.\nPlease enter a selection: ")
-    return options[k][0]
+    return options[k][0] 
 
-def edit_filter(state):
-    state.printFilterState()
+def do_filter(state):
+    print(state)
     options = OrderedDict()
-    options["m"] = ("modify_filter", "Change elements of current filter")
-    options["a"] = ("apply_filter", "Apply current filter to feat database")
-    options["v"] = ("view_feats", "View filtered selection")
-    options["o"] = ("out_feats", "Output filtered selection to file")
-    options["b"] =  ("base_menu", "Return to initial program menu")
+    options["m"] = ("modify_filter",    "Change elements of current filter")
+    options["a"] = ("apply_filter",     "Apply current filter to feat database")
+    options["v"] = ("view_feats",       "View filtered selection")
+    options["o"] = ("out_feats",        "Output filtered selection to file")
+    options["t"] = ("out_tree",         "View feat tree for current selection")
+    options["b"] = ("base_menu",        "Return to initial program menu")
     return simple_state(options)
 
 def base_menu(_):
     options = OrderedDict() 
-    options["f"] = ("edit_filter", "Filter feat database and view filtered selection")
-    options["p"] = ("print_feat", "View a specific feat in the console")
+    options["f"] = ("do_filter", "Filter feat database and view filtered selection")
+    options["p"] = ("print_feat", "View information for a specific feat")
     options["x"] = ("exit_program", "Exit program")
     return simple_state(options)
 
@@ -244,9 +230,10 @@ def base_menu(_):
 # State Table
 ########################################################################################
 states = {"base_menu" : base_menu,
-          "edit_filter" : edit_filter,
+          "do_filter" : do_filter,
           "view_feats" : view_feats,
           "out_feats" : output_feats,
+          "out_tree" : output_tree,
           "modify_filter" : modify_filter,
           "apply_filter" : apply_filter,
           "print_feat" : print_feat,
@@ -261,15 +248,13 @@ if __name__ == "__main__":
         print(titleString)
         iFile = input("Path to feat csv file: ")
     
-    featList = []
+    rawfeats = []
     with open(iFile, "r") as csvFile:
         reader = csv.DictReader(csvFile)
-        for row in reader: 
-            featList.append(row)
+        rawfeats = [row for row in reader]
 
-    state = ProgramState(featList, "base_menu")
+    feats = [Feat(raw) for raw in rawfeats]
+    state = ProgramState(feats, states, "base_menu")
     while True:
-        clearConsole()
-        print(titleString)
-        state.current_state = states[state.current_state](state)
-
+        state.executeState()
+       
