@@ -72,7 +72,7 @@ class ProgramState:
         print(self)
         print("Modifying filter based on feat " + k)
     
-        k = prereq_type(k) if k == "prerequisites" else k 
+        k = prereq_type() if k == "prerequisites" else k 
     
         if self.filter.containsKey(k):
             response = input("Clear filtering based on feat "+k+" [yes/no] ? ").lower()
@@ -99,14 +99,14 @@ class ProgramState:
 # State Actions
 ########################################################################################
 
-def getViewString(state):
+def getViewString(selection):
     detailed = input("Output detailed feat information [yes/no] ? ").lower()
-    return  "\n\n".join([str(f) for f in state.selection] \
+    return  "\n\n".join([str(f) for f in selection] \
                         if "yes".find(detailed) == 0 \
-                        else [f.briefstr() for f in state.selection]) + "\n"
+                        else [f.briefstr() for f in selection]) + "\n"
 
 def view_feats(state):
-    print(getViewstr(state))
+    print(getViewString(state.selection))
     resp = input("View specific feat(s) in detail [yes/no]? ")
     if "yes".find(resp) == 0: _ = print_feat(state)
     return "do_filter"
@@ -114,7 +114,7 @@ def view_feats(state):
 def output_feats(state):
     outfile = input("Path to file for filtered selection output: ")
     with open(outfile, "w") as f:
-        f.write(getViewstr(state))
+        f.write(getViewString(state.selection))
     return "do_filter"
  
 def output_tree(state):
