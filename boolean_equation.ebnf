@@ -1,0 +1,8 @@
+expression = < term > { < and > < term > }
+term = < factor { < or > < factor > }
+factor = < identifier > | < not > < factor > | ( < expression > )
+and = "&"
+not = "!"
+or = "|"
+identifier = r'".+"' 
+
