@@ -38,7 +38,7 @@ let parse_line line =
 
 let of_strings strings =
     List.rev_map (fun s -> List.init (String.length s) (String.get s)) strings
-    |> List.rev_map parse_line 
+    |> List.rev_map parse_line
 
 let of_string s = 
     String.split_on_char '\n' s
@@ -51,6 +51,7 @@ let of_in_channel ic =
         | l -> rl (l :: acc)
         | exception End_of_file -> acc
     in rl []
+    |> List.filter (fun s -> (String.trim s) <> "")
     |> List.rev
     |> of_strings
 
@@ -59,4 +60,3 @@ let of_path path =
     let c = of_in_channel ic in
     close_in ic; c
 
-    
