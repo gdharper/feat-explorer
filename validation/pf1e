@@ -1,0 +1,55 @@
+
+required=[
+    "name",
+    "types",
+    "description",
+    "benefit",
+    "source"
+]
+
+optional=[
+    "prerequisites",
+    "normal",
+    "special",
+    "goal",
+    "completion_benefit",
+    "prerequisite_feats",
+    "prerequisite_skills",
+    "prerequisite_race",
+    "suggested_traits"
+]
+
+values.types=[
+    "achivement",
+    "armor_mastery",
+    "betrayal",
+    "blood_hex",
+    "combat",
+    "conduit",
+    "critcal",
+    "esoteric",
+    "familiar",
+    "general",
+    "grit",
+    "item_creation",
+    "item_mastery",
+    "meditation",
+    "metamagic",
+    "monster",
+    "mythic",
+    "panache",
+    "performance",
+    "racial",
+    "shield_mastery",
+    "stare",
+    "story",
+    "style",
+    "targeting",
+    "teamwork",
+    "trick",
+    "weapon_mastery"
+]
+
+separator.types="/"
+
+

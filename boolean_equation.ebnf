@@ -1,8 +1,11 @@
-expression = < term > { < and > < term > }
-term = < factor { < or > < factor > }
-factor = < identifier > | < not > < factor > | ( < expression > )
-and = "&"
-not = "!"
-or = "|"
-identifier = r'".+"' 
+expression : < term > { < and > < term > }
+term : < factor > { < or > < factor > }
+factor : < identifier > | < not > < factor > | < oparen > < expression > < cparen >
+oparen : '('
+cparen : ')'
+and : '&'
+not : '!'
+or : '|'
+identifier : < quote > r'.+' < quote >
+quote : '"'
 

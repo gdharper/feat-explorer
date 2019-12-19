@@ -1,0 +1,10 @@
+
+definition : < keyword > < equals > {< term > < comma >} < term >
+keyword : 'required'|'optional'|'values'[< dot > < term >]|'split'[< dot > < split >]
+character : r'[^\s"]{1}'
+term : r'[A-Za-z0-9_]+' | < quote > r'[^"]+' < quote >
+comma : ','
+dot : '.'
+equals : '='
+quote : '"'
+
